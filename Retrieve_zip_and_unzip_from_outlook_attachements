@@ -1,0 +1,57 @@
+import win32com.client
+#other libraries to be used in this script
+import os
+from datetime import datetime, timedelta, date
+import gzip
+import shutil
+
+today = date.today()
+datetimeinsert = today.strftime("%d_%m_%Y")
+
+outlook = win32com.client.Dispatch('outlook.application')
+mapi = outlook.GetNamespace("MAPI")
+
+for account in mapi.Accounts:
+    print(account.DeliveryStore.DisplayName)
+    
+inbox = mapi.GetDefaultFolder(6)
+
+messages = inbox.Items
+'''
+received_dt = datetime.now() - timedelta(days=1)
+received_dt = received_dt.strftime('%m/%d/%Y %H:%M %p')
+messages = messages.Restrict("[ReceivedTime] >= '" + received_dt + "'")
+messages = messages.Restrict("[SenderEmailAddress] = 'contact@codeforests.com'")
+'''
+
+received_dt = datetime.now() - timedelta(days=7)
+received_dt = received_dt.strftime('%m/%d/%Y %H:%M %p')
+messages = messages.Restrict("[ReceivedTime] >= '" + received_dt + "'")
+
+messages = messages.Restrict("[Subject] = 'SCORe Report Alert - PIPER_BI_FRI_PULL_EDI'")
+
+
+outputDir = r"C:\\DHL Supply Chain\\Piper BI\\MRP Test"
+
+try:
+    for message in list(messages):
+        try:
+            s = message.sender
+            for attachment in message.Attachments:
+                print(attachment.FileName)
+                if attachment.FileName.endswith('.csv'):
+                    attachment.SaveASFile(outputDir + "\\" + datetimeinsert + attachment.FileName)               
+                else:
+                    string_name = datetimeinsert + attachment.FileName
+                    string_name_omitted = datetimeinsert + string_name[:-4]
+                    attachment.SaveASFile(outputDir + "\\" + datetimeinsert + attachment.FileName)    
+                    with gzip.open('C:\DHL Supply Chain\Piper BI\MRP Test\{a}'.format(a=string_name), 'rb') as f_in:
+                        with open('C:\DHL Supply Chain\Piper BI\MRP Test\{a}'.format(a=string_name_omitted), 'wb') as f_out:
+                            shutil.copyfileobj(f_in, f_out)
+                print(f"attachment {attachment.FileName} from {s} saved")
+        except Exception as e:
+            print("error when saving the attachment:" + str(e))
+except Exception as e:
+        print("error when processing emails messages:" + str(e))
+        
+        
